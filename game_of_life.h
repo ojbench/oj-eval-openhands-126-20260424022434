@@ -103,42 +103,39 @@ inline void Initialize() {
  */
 inline void Tick() {
   std::unordered_map<std::pair<int, int>, int, PairHash> neighbor_count;
+  neighbor_count.reserve(live_cells.size() * 9);
   
   // Count neighbors for all cells that might change
   for (const auto& cell : live_cells) {
     int r = cell.first;
     int c = cell.second;
     
-    for (int dr = -1; dr <= 1; dr++) {
-      for (int dc = -1; dc <= 1; dc++) {
-        if (dr == 0 && dc == 0) continue;
-        
-        int nr = r + dr;
-        int nc = c + dc;
-        
-        if (nr >= 0 && nr < row && nc >= 0 && nc < col) {
-          neighbor_count[{nr, nc}]++;
-        }
-      }
+    // Unroll the loop for better performance
+    if (r > 0) {
+      if (c > 0) neighbor_count[{r-1, c-1}]++;
+      neighbor_count[{r-1, c}]++;
+      if (c < col-1) neighbor_count[{r-1, c+1}]++;
+    }
+    
+    if (c > 0) neighbor_count[{r, c-1}]++;
+    if (c < col-1) neighbor_count[{r, c+1}]++;
+    
+    if (r < row-1) {
+      if (c > 0) neighbor_count[{r+1, c-1}]++;
+      neighbor_count[{r+1, c}]++;
+      if (c < col-1) neighbor_count[{r+1, c+1}]++;
     }
   }
   
   std::unordered_set<std::pair<int, int>, PairHash> new_live_cells;
+  new_live_cells.reserve(live_cells.size());
   
   // Apply rules
   for (const auto& entry : neighbor_count) {
     int count = entry.second;
     
-    bool is_alive = live_cells.count(entry.first) > 0;
-    
-    if (is_alive) {
-      if (count == 2 || count == 3) {
-        new_live_cells.insert(entry.first);
-      }
-    } else {
-      if (count == 3) {
-        new_live_cells.insert(entry.first);
-      }
+    if (count == 3 || (count == 2 && live_cells.count(entry.first))) {
+      new_live_cells.insert(entry.first);
     }
   }
   
