@@ -24,15 +24,15 @@
  * Feel free to define/modify variables here.
  */
 inline int row = -1, col = -1;
+inline std::unordered_set<long long> live_cells;
 
-// Custom hash for pair
-struct PairHash {
-  std::size_t operator()(const std::pair<int, int>& p) const {
-    return std::hash<long long>()(((long long)p.first << 32) | (unsigned int)p.second);
-  }
-};
+inline long long encode(int r, int c) {
+  return ((long long)r << 20) | c;
+}
 
-inline std::unordered_set<std::pair<int, int>, PairHash> live_cells;
+inline std::pair<int, int> decode(long long key) {
+  return {(int)(key >> 20), (int)(key & 0xFFFFF)};
+}
 
 /**
  * This function is called at the beginning of every game.
@@ -78,7 +78,7 @@ inline void Initialize() {
     } else if (c == 'o') {
       int count = has_num ? num : 1;
       for (int j = 0; j < count; j++) {
-        live_cells.insert({curr_row, curr_col});
+        live_cells.insert(encode(curr_row, curr_col));
         curr_col++;
       }
       num = 0;
@@ -102,32 +102,31 @@ inline void Initialize() {
  * TODO: Simulate a new round of the game.
  */
 inline void Tick() {
-  std::unordered_map<std::pair<int, int>, int, PairHash> neighbor_count;
+  std::unordered_map<long long, int> neighbor_count;
   neighbor_count.reserve(live_cells.size() * 9);
   
   // Count neighbors for all cells that might change
-  for (const auto& cell : live_cells) {
-    int r = cell.first;
-    int c = cell.second;
+  for (long long key : live_cells) {
+    auto [r, c] = decode(key);
     
     // Unroll the loop for better performance
     if (r > 0) {
-      if (c > 0) neighbor_count[{r-1, c-1}]++;
-      neighbor_count[{r-1, c}]++;
-      if (c < col-1) neighbor_count[{r-1, c+1}]++;
+      if (c > 0) neighbor_count[encode(r-1, c-1)]++;
+      neighbor_count[encode(r-1, c)]++;
+      if (c < col-1) neighbor_count[encode(r-1, c+1)]++;
     }
     
-    if (c > 0) neighbor_count[{r, c-1}]++;
-    if (c < col-1) neighbor_count[{r, c+1}]++;
+    if (c > 0) neighbor_count[encode(r, c-1)]++;
+    if (c < col-1) neighbor_count[encode(r, c+1)]++;
     
     if (r < row-1) {
-      if (c > 0) neighbor_count[{r+1, c-1}]++;
-      neighbor_count[{r+1, c}]++;
-      if (c < col-1) neighbor_count[{r+1, c+1}]++;
+      if (c > 0) neighbor_count[encode(r+1, c-1)]++;
+      neighbor_count[encode(r+1, c)]++;
+      if (c < col-1) neighbor_count[encode(r+1, c+1)]++;
     }
   }
   
-  std::unordered_set<std::pair<int, int>, PairHash> new_live_cells;
+  std::unordered_set<long long> new_live_cells;
   new_live_cells.reserve(live_cells.size());
   
   // Apply rules
@@ -161,9 +160,10 @@ inline void PrintGame() {
   
   // Find last row with live cells
   int last_row = -1;
-  for (const auto& cell : live_cells) {
-    if (cell.first > last_row) {
-      last_row = cell.first;
+  for (long long key : live_cells) {
+    auto [r, c] = decode(key);
+    if (r > last_row) {
+      last_row = r;
     }
   }
   
@@ -172,9 +172,10 @@ inline void PrintGame() {
   for (int r = 0; r <= last_row; r++) {
     // Find last alive cell in this row
     int last_alive_col = -1;
-    for (const auto& cell : live_cells) {
-      if (cell.first == r && cell.second > last_alive_col) {
-        last_alive_col = cell.second;
+    for (long long key : live_cells) {
+      auto [cell_r, cell_c] = decode(key);
+      if (cell_r == r && cell_c > last_alive_col) {
+        last_alive_col = cell_c;
       }
     }
     
@@ -187,12 +188,12 @@ inline void PrintGame() {
     // Output this row
     int c = 0;
     while (c <= last_alive_col) {
-      bool is_alive = live_cells.count({r, c}) > 0;
+      bool is_alive = live_cells.count(encode(r, c)) > 0;
       
       // Count consecutive cells of same type
       int count = 1;
       while (c + count <= last_alive_col) {
-        bool next_alive = live_cells.count({r, c + count}) > 0;
+        bool next_alive = live_cells.count(encode(r, c + count)) > 0;
         if (next_alive != is_alive) break;
         count++;
       }
