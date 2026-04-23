@@ -16,13 +16,23 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <unordered_set>
+#include <unordered_map>
 #include <sstream>
 
 /**
  * Feel free to define/modify variables here.
  */
 inline int row = -1, col = -1;
-inline std::set<std::pair<int, int>> live_cells;
+
+// Custom hash for pair
+struct PairHash {
+  std::size_t operator()(const std::pair<int, int>& p) const {
+    return std::hash<long long>()(((long long)p.first << 32) | (unsigned int)p.second);
+  }
+};
+
+inline std::unordered_set<std::pair<int, int>, PairHash> live_cells;
 
 /**
  * This function is called at the beginning of every game.
@@ -92,7 +102,7 @@ inline void Initialize() {
  * TODO: Simulate a new round of the game.
  */
 inline void Tick() {
-  std::map<std::pair<int, int>, int> neighbor_count;
+  std::unordered_map<std::pair<int, int>, int, PairHash> neighbor_count;
   
   // Count neighbors for all cells that might change
   for (const auto& cell : live_cells) {
@@ -113,28 +123,26 @@ inline void Tick() {
     }
   }
   
-  std::set<std::pair<int, int>> new_live_cells;
+  std::unordered_set<std::pair<int, int>, PairHash> new_live_cells;
   
   // Apply rules
   for (const auto& entry : neighbor_count) {
-    int r = entry.first.first;
-    int c = entry.first.second;
     int count = entry.second;
     
-    bool is_alive = live_cells.count({r, c}) > 0;
+    bool is_alive = live_cells.count(entry.first) > 0;
     
     if (is_alive) {
       if (count == 2 || count == 3) {
-        new_live_cells.insert({r, c});
+        new_live_cells.insert(entry.first);
       }
     } else {
       if (count == 3) {
-        new_live_cells.insert({r, c});
+        new_live_cells.insert(entry.first);
       }
     }
   }
   
-  live_cells = new_live_cells;
+  live_cells = std::move(new_live_cells);
 }
 
 /**
