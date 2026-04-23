@@ -1,0 +1,7 @@
+*.o
+*.out
+*.exe
+game_test
+main.cpp
+test_input.txt
+my_output*.txt
